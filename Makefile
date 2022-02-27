@@ -1,11 +1,23 @@
+#Project name: FLP 2021/2022 – funkcionální projekt: Haskell
+#Login: xklemr00
+#Author: Richard Klem
+#Year: 2022
+
 NAME=main
 OUTNAME=flp21-fun
 
-all: $(NAME).hs
-	ghc $(NAME).hs -o $(OUTNAME) -Wall
+all: run
+
+run:
+	./$(OUTNAME)
+
+install: compile
+
+compile: clean
+	ghc -Wall -o $(OUTNAME) $(NAME).hs
 
 clean:
-	rm -f $(NAME).hi $(NAME).o
+	rm $(OUTNAME) *.o *.hi
 
-cleanall:
-	rm -f $(NAME).hi $(NAME).o $(OUTNAME)
+zip:
+	zip -r flp-fun-xklemr46.zip Makefile *.hs doc/ tests/
