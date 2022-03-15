@@ -17,33 +17,46 @@ module Lib
 import System.Environment
 import System.Exit
 import System.IO (putStrLn, stderr)
-import Data.List (nub)
+import Data.List (nub, intersperse, intercalate)
 
-data RLG = RLG {  nonterminals :: String, terminals :: String, startSymbol  :: Char, rules :: [(Char, String)] }
-data NFA = NFA {  states :: [Int], inputAlphabet :: String, transitionFunction  :: [(Int,Char,Int)],
+-- data RLG = RLG {  nonterminals :: [String], terminals :: [String], startSymbol :: Char, rules :: [(Char, String)] }
+data RLG = RLG {  nonterminals :: [String], terminals :: [String], startSymbol :: Char, rules :: [String] }
+data NFA = NFA {  states :: [Int], inputAlphabet :: String, transitionFunction :: [(Int,Char,Int)],
   initialState :: Int, finalStates :: [Int] }
 
 newParse :: [String] -> String
-newParse ("-i":x:xs) = x
+newParse ("-i":x:xs) = x -- showRLG parseInput
 
-wordsWhen     :: (Char -> Bool) -> String -> [String]
+wordsWhen :: (Char -> Bool) -> String -> [String]
 wordsWhen p s =  case dropWhile p s of
                       "" -> []
                       s' -> w : wordsWhen p s''
                             where (w, s'') = break p s'
 
-
+showRLG :: RLG -> IO ()
+showRLG a = putStr $ concat (concat [
+    [concat $ intersperse "," (nonterminals a) ++ ["\n"]],
+    [concat $ intersperse "," (terminals a) ++ ["\n"]],
+    [concat $ [startSymbol a] : ["\n"]],
+    [unlines $ rules a]
+    ]
+  )
 algo :: IO ()
+
 -- algo = getArgs >>= parse
 algo = do
   args <- getArgs
   let fileName = newParse args
   fs <- readFile fileName
-  let nonterminals:terminals:startSymbol:rules = lines fs
-  print $ nub (wordsWhen (==',') nonterminals)
-  putStrLn terminals
-  putStrLn startSymbol
-  print rules
+  let nonterminalsString:terminalsString:startSymbolString:rulesString = lines fs
+  let nonterminals = nub (wordsWhen (==',') nonterminalsString)
+  let terminals = nub (wordsWhen (==',') terminalsString)
+  let startSymbol = head $ head $ nub (wordsWhen (==',') startSymbolString)
+  let rules = nub $ filter (not . null) rulesString
+  let rlg = RLG nonterminals terminals startSymbol rules
+
+  showRLG rlg
+
 --
 -- parse :: [String] -> IO ()
 -- parse ("-i":xs) = putStr (info ++ ":" ++ show xs) >> exit
