@@ -11,15 +11,19 @@
 --3. convert ReGr to NFA
 
 module Lib
-    ( algo
+    ( rlg2nfa
     ) where
 
 import System.Environment
 import System.Exit
 import System.IO (putStrLn, stderr)
 import Data.List (nub, intersperse, intercalate)
+import Text.Show.Functions
 
 -- data RLG = RLG {  nonterminals :: [String], terminals :: [String], startSymbol :: Char, rules :: [(Char, String)] }
+type Rules = [String]
+type StartSymbol = Char
+type Nonterminals = [String]
 data RLG = RLG {  nonterminals :: [String], terminals :: [String], startSymbol :: Char, rules :: [String] }
 data NFA = NFA {  states :: [Int], inputAlphabet :: String, transitionFunction :: [(Int,Char,Int)],
   initialState :: Int, finalStates :: [Int] }
@@ -33,18 +37,25 @@ wordsWhen p s =  case dropWhile p s of
                       s' -> w : wordsWhen p s''
                             where (w, s'') = break p s'
 
-showRLG :: RLG -> IO ()
-showRLG a = putStr $ concat (concat [
+showRLG :: RLG -> String
+showRLG a = concat (concat [
     [concat $ intersperse "," (nonterminals a) ++ ["\n"]],
     [concat $ intersperse "," (terminals a) ++ ["\n"]],
     [concat $ [startSymbol a] : ["\n"]],
     [unlines $ rules a]
     ]
   )
-algo :: IO ()
 
--- algo = getArgs >>= parse
-algo = do
+-- TODO Dokoncit tuto funkci.
+removeInvalidRules :: Rules -> Rules
+removeInvalidRules _ = ["me"]
+
+
+{-___ MAIN ___-}
+rlg2nfa :: IO ()
+
+-- rlg2nfa = getArgs >>= parse
+rlg2nfa = do
   args <- getArgs
   let fileName = newParse args
   fs <- readFile fileName
@@ -55,7 +66,7 @@ algo = do
   let rules = nub $ filter (not . null) rulesString
   let rlg = RLG nonterminals terminals startSymbol rules
 
-  showRLG rlg
+  putStr $ showRLG rlg
 
 --
 -- parse :: [String] -> IO ()
