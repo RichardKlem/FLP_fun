@@ -26,6 +26,7 @@ source-repository head
 library
   exposed-modules:
       Lib
+      Test
   other-modules:
       Paths_flp21_fun
   hs-source-dirs:

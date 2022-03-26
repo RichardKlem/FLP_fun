@@ -21,10 +21,17 @@ import Data.List (nub, intersperse, intercalate)
 import Text.Show.Functions
 
 -- data RLG = RLG {  nonterminals :: [String], terminals :: [String], startSymbol :: Char, rules :: [(Char, String)] }
+type Nonterminals = String
+type Terminals = String
+type StartSymbol = String
 type Rules = [String]
-type StartSymbol = Char
-type Nonterminals = [String]
 data RLG = RLG {  nonterminals :: [String], terminals :: [String], startSymbol :: Char, rules :: [String] }
+
+type States = [Int]
+type InputAlphabet = String
+type TransitionFunction = [(Int,Char,Int)]
+type InitialState = Int
+type FinalStates = [Int]
 data NFA = NFA {  states :: [Int], inputAlphabet :: String, transitionFunction :: [(Int,Char,Int)],
   initialState :: Int, finalStates :: [Int] }
 
