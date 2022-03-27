@@ -27,6 +27,7 @@ library
   exposed-modules:
       Lib
       Test
+      Utils
   other-modules:
       Paths_flp21_fun
   hs-source-dirs:
