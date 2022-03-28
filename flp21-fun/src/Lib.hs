@@ -11,6 +11,7 @@ where
 import Data.List (intersperse, nub)
 import System.Environment
 import Utils
+import GHC.Conc (pseq)
 
 -- data RLG = RLG {  nonterminals :: [String], terminals :: [String], startSymbol :: Char, rules :: [(Char, String)] }
 type Nonterminals = [String]
@@ -37,21 +38,16 @@ data NFA = NFA
     finalStates :: FinalStates,
     transitionFunction :: TransitionFunction
   }
-  
+
 getInput :: [FilePath] -> IO [String]
-getInput [x] = do 
-  lines <$> readFile x
-  
-getInput [] = do 
-  lines <$> getContents
-  
-getInput _ = do
-  error "Invalid arguments."
+getInput [] = lines <$> getContents
+getInput [x] = lines <$> readFile x  
+getInput _ = error "Invalid arguments."
 
 newParse :: [String] -> (Int, [String])
-newParse ("-i" : x) = (0, getInput x)
-newParse ("-1" : x) = (1, getInput x)
-newParse ("-2" : x) = (2, getInput x)
+newParse ("-i" : x) = (0, x)
+newParse ("-1" : x) = (1, x)
+newParse ("-2" : x) = (2, x)
 newParse _ = error "Neplatne argumenty."
 
 
@@ -132,14 +128,14 @@ rlg2nfa :: IO ()
 rlg2nfa = do
     args <- getArgs
     let (variant, fileName) = newParse args
-    input <- getInput fileName
+    input <- getInput fileName 
+    let n = length input 
    
     case variant of 
-      0 -> getRLG input >>= putStr . showRLG
-      1 -> getRLG input >>= convertToRRG >>= putStr . showRRG
-      2 -> getRLG input >>= convertToRRG >>= convertToNFA >>= putStr . showNFA
+      0 -> getRLG input >>= (n `pseq` (putStr . showRLG))
+      1 -> getRLG input >>= convertToRRG >>= (n `pseq` (putStr . showRRG))
+      2 -> getRLG input >>= convertToRRG >>= convertToNFA >>= (n `pseq` (putStr . showNFA))
       _ -> error "Neplatne argumenty."
-    
     
 
 getRLG input = do
