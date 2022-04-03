@@ -7,11 +7,9 @@ cabal-version: 1.12
 name:           flp21-fun
 version:        0.1.0.0
 description:    Please see the README on GitHub at <https://github.com/githubuser/flp21-fun#readme>
-homepage:       https://github.com/githubuser/flp21-fun#readme
-bug-reports:    https://github.com/githubuser/flp21-fun/issues
-author:         Author name here
-maintainer:     example@example.com
-copyright:      2022 Author name here
+author:         Richard Klem
+maintainer:     xklemr00@vutbr.cz
+copyright:      2022 Richard Klem
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
@@ -19,14 +17,9 @@ extra-source-files:
     README.md
     ChangeLog.md
 
-source-repository head
-  type: git
-  location: https://github.com/githubuser/flp21-fun
-
 library
   exposed-modules:
       Lib
-      Test
       Utils
   other-modules:
       Paths_flp21_fun
@@ -34,6 +27,7 @@ library
       src
   build-depends:
       base >=4.7 && <5
+    , containers
   default-language: Haskell2010
 
 executable flp21-fun-exe
@@ -45,6 +39,7 @@ executable flp21-fun-exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , containers
     , flp21-fun
   default-language: Haskell2010
 
@@ -58,5 +53,6 @@ test-suite flp21-fun-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , containers
     , flp21-fun
   default-language: Haskell2010

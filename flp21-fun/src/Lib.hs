@@ -9,23 +9,28 @@ module Lib
 where
 
 import Data.List (intersperse, nub, elemIndex, intercalate)
-import Data.Map (fromList, lookup)
+import Data.Map (fromList, lookup, empty, alter)
+import Data.Map.Internal (Map)
 import Prelude hiding (lookup)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isNothing)
 import System.Environment
 import GHC.Conc (pseq)
 import Utils
+-- USEFUL STUFF --
+  -- insert or update => alter (\_ -> Just <val>) <key> Dict
+  -- insert or update => alter (\_ -> Just <val>) <key> Dict
 
--- data RLG = RLG {  nonterminals :: [String], terminals :: [String], startSymbol :: Char, rules :: [(Char, String)] }
+-- data Grammar = Grammar {  nonterminals :: [String], terminals :: [String], startSymbol :: Char, rules :: [(Char, String)] }
 type Nonterminals = [String]
 type Terminals = [String]
 type StartSymbol = Char
 type Rule = (String, String)
 type Rules = [Rule]
-data RLG = RLG {nonterminals :: Nonterminals, terminals :: Terminals, startSymbol :: StartSymbol, rules :: Rules}
+data Grammar = Grammar {nonterminals :: Nonterminals, terminals :: Terminals, startSymbol :: StartSymbol, rules :: Rules}
   deriving Show
 
-type RRG = RLG
+type StatesDict = Map String Int
+type Dict = Map Char Int
 
 type States = [Int]
 type InputAlphabet = String
@@ -55,7 +60,7 @@ newParse _ = error "Neplatne argumenty."
 
 
 
-showRLG :: RLG -> String
+showRLG :: Grammar -> String
 showRLG a =
   concat
     ( concat
@@ -66,7 +71,7 @@ showRLG a =
         ]
     )
 
-showRRG :: RRG -> String
+showRRG :: Grammar -> String
 showRRG a = "Right Regular Grammar:\n" ++ showRLG a
 
 showNFA :: NFA -> String
@@ -77,7 +82,7 @@ showNFA a =
           [inputAlphabet a ++ "\n"],
           [show (initialState a) ++ "\n"],
           [concat $ intersperse "," (map show (finalStates a)) ++ ["\n"]],
-          [unlines $ (map (\(q, c, p) -> intercalate "," [show q, [c], show p]) (transitionFunction a))]
+          [unlines (map (\(q, c, p) -> intercalate "," [show q, [c], show p]) (transitionFunction a))]
         ]
     )
 
@@ -104,26 +109,73 @@ checkIfValidRule rule = error ("Spatna syntaxe pravidla: " ++ rule)
 -- A->abA  //VALID ==> A->aA1, A1->bA   //musi byt definovano A-># od uzivatele stejne jako nahore
 
 
--- Convert rule from RLG to type 3 grammar (RG).
+-- Convert rule from Grammar to type 3 grammar (RG).
 -- Zde se jiz muzu psolehnout na korektni tvar pravidel.
-convertRuleRRG :: Rule -> Rules
 --convertRule r = if ((last (snd r) `elem` ['A' .. 'Z']) && length (snd r) == 2 ) || snd r == "#" then [r] else [("","")]
-convertRuleRRG r = [r] -- TODO
+--convertRuleRRG :: Rule -> Rules -- TODO
+--convertRuleRRG rule = (\(l,r) -> if (((length r) <= 2) && (['A'..'Z'] `elem` r)) then [(l,r)] else if (not (['A'..'Z'] `elem` r)) then generateRules (l,r) 1 else [(l,r)]) rule
+--convertRuleRRG rule = (\(l,r) -> if (((length r) <= 2) && ( any (`elem` ['A'..'Z'])) r) then [(l,r)] else if (not ( any (`elem` ['A'..'Z']) r)) then generateRules [(l,r)] 1 else [(l,"!!!")]) rule
+convertRuleRRG :: Rule -> Dict -> Rules -> (Dict, Rules)
+convertRuleRRG (l,r) counter rules =   
+    if (r == "#") || ((length r == 2) && any (`elem` ['A'..'Z']) r) then (counter, [(l,r)])  -- ("X", "#"), pozdeji se prevede X na koncovy stav a pravidlo se odstrani. -- ("X", "xY") 
+    else generateRules (l,r) counter rules
+ 
 
--- getTransitionFunction :: Rules -> TransitionFunction
-getTransitionFunction rs dict = map (\(l, r) -> if r == "#" then (fromJust(lookup l dict), '#', fromJust(lookup l dict)) else (fromJust(lookup l dict), head r, fromJust(lookup (tail r) dict))) rs
+-- TODO dodelat tyto zpicene hacky na nove neterminaly
+--generateRules :: Rules -> Int -> Rules
+--generateRules [(l, "#")] _ = [(l, "#")]
+--generateRules ((l,r)) i = [(l, head r ++ l ++ show i)] ++ (generateRules r (i + 1)) -- A->aa | A->abacracga
 
--- convertToRRG :: RLG -> RRG
-convertToRRG = return -- TODO
+--generateRules [(l, _)] _ = [(l, "#")]
 
---convertToNFA :: RRG -> NFA -- TODO
+getFromCounter :: Char -> Dict -> Int
+getFromCounter k c = if isNothing (lookup k c) then 0 else fromJust(lookup k c)
+
+incrementCounter :: Char -> Dict -> Dict
+incrementCounter k c = alter (\_ -> Just (if isNothing (lookup k c) then 0 else fromJust(lookup k c) + 1)) k c
+-- Increment nonterminal's counter and return new appropriate nonterminal.
+getNextNonterminal :: Char -> Dict -> String
+getNextNonterminal nt c = nt:show (getFromCounter nt c)
+
+generateRules :: Rule -> Dict -> Rules -> (Dict, Rules)
+generateRules (l, [r]) c rules = ( incrementCounter (head l) c, rules ++ [(l, r:getNextNonterminal (head l) c)] ++ [(getNextNonterminal (head l) c, "#")])  
+generateRules (l, r:rs) c rules = 
+  if head rs `elem` ['A'..'Z'] then (incrementCounter (head l) c, (l,r:rs):rules) 
+  else generateRules (getNextNonterminal (head l) c, rs) (incrementCounter (head l) c) ((l,r:getNextNonterminal (head l) c):rules)  
+
+getFinalStates :: Grammar -> StatesDict -> FinalStates
+getFinalStates rrg dict = map (\(l,_) -> fromJust(lookup l dict)) (filter (\(_,r) -> r == "#") (rules rrg))
+
+getTransitionFunction :: Rules -> StatesDict -> TransitionFunction  -- I am not able to make this type work.
+getTransitionFunction rs dict = map (\(l, r) -> (fromJust(lookup l dict), head r, fromJust(lookup (tail r) dict))) (filter (\(_,r) -> r /= "#") rs)
+
+
+convertToRRG :: Grammar -> IO Grammar
+convertToRRG rlg = do
+  let counterDict = fromList(zip ['A'..'Z'] (replicate 26 0))
+  let rulesList = []
+  --  fce (l,r) = if (any (`elem` ['A'..'Z'] (dropWhile (`elem` ['a'..'z']) r)))
+  let rulesRRG = concatMap (\rule -> snd (convertRuleRRG rule counterDict rulesList)) (rules rlg)
+  
+  let nonterminalsRRG = nub (nonterminals rlg ++ map fst rulesRRG)
+  
+  return Grammar {
+  nonterminals = nonterminalsRRG,
+  terminals = terminals rlg,
+  startSymbol = startSymbol rlg,
+  rules = rulesRRG
+  } 
+
+convertToNFA :: Grammar -> IO NFA
 convertToNFA rrg = do
   let dict = fromList (zip (nonterminals rrg) [0..length (nonterminals rrg) - 1])
-  return NFA { states = [0.. length (nonterminals rrg) - 1],--(map (\nt -> fromJust (elemIndex nt (map head (nonterminals rrg)))) (map head (nonterminals rrg))),
+  return NFA { states = [0.. length (nonterminals rrg) - 1],  -- (map (\nt -> fromJust (elemIndex nt (map head (nonterminals rrg)))) (map head (nonterminals rrg))),
                inputAlphabet = concat (terminals rrg),
                initialState = fromJust (elemIndex (startSymbol rrg) (map head (nonterminals rrg))),
-               finalStates = [0.. length (nonterminals rrg) - 1],
+               finalStates = getFinalStates rrg dict,
                transitionFunction = getTransitionFunction (rules rrg) dict}
+
+
 
 {-___ MAIN ___-}
 rlg2nfa :: IO ()
@@ -141,14 +193,15 @@ rlg2nfa = do
       _ -> error "Neplatne argumenty."
 
 
+getRLG :: Monad m => [String] -> m Grammar
 getRLG input = do
   let nonterminalsString : terminalsString : startSymbolString : rulesString = input
   let nonterminals = map ((\a -> if length a == 1 && head a `elem` ['A' .. 'Z'] then a else error "Neterminal muze byt pouze jedno z velkych pismen 'A' az 'Z'") . skipSpaces) (nub (wordsWhen (== ',') nonterminalsString))
   let terminals = map skipSpaces (nub (wordsWhen (== ',') terminalsString))
   let startSymbol = if length (skipSpaces startSymbolString) <= 1 then head $ skipSpaces startSymbolString else error "Startovaci symbol musi byt jeden znak na samostatnem radku."
 --  let rules = filter (/= ("", "")) (map checkIfValidRule (nub $ filter (not . null) rulesString))
-  let rules = concatMap (convertRuleRRG . checkIfValidRule . skipSpaces) (nub $ filter (not . null) rulesString)
-  let rlg = RLG nonterminals terminals startSymbol rules
+  let rules = concatMap ((: []) . checkIfValidRule . skipSpaces) (nub $ filter (not . null) rulesString)
+  let rlg = Grammar nonterminals terminals startSymbol rules
 
   return rlg
 
