@@ -4,17 +4,18 @@
 --Year: 2022
 
 module Lib
-  ( rlg2nfa,
+  ( mainFunc,
   )
 where
 
-import Data.List (intersperse, nub, elemIndex, intercalate)
-import Data.Map (fromList, lookup, empty, alter)
-import Data.Map.Internal (Map)
+import Data.List (intersperse, elemIndex, intercalate)
+import Data.Containers.ListUtils (nubOrd)
+import Data.Map (fromList, lookup, empty, alter, Map)
 import Prelude hiding (lookup)
 import Data.Maybe (fromJust, isNothing)
 import System.Environment
 import GHC.Conc (pseq)
+import Control.Monad (when)
 import Utils
 -- USEFUL STUFF --
   -- insert or update => alter (\_ -> Just <val>) <key> Dict
@@ -153,18 +154,21 @@ getTransitionFunction rs dict = map (\(l, r) -> (fromJust(lookup l dict), head r
 convertToRRG :: Grammar -> IO Grammar
 convertToRRG rlg = do
   let counterDict = fromList(zip ['A'..'Z'] (replicate 26 0))
-  let rulesList = []
   --  fce (l,r) = if (any (`elem` ['A'..'Z'] (dropWhile (`elem` ['a'..'z']) r)))
-  let rulesRRG = concatMap (\rule -> snd (convertRuleRRG rule counterDict rulesList)) (rules rlg)
+  -- TODO predavani jednoho counterDict do vsech pravidel. Je to potreba vlastne?
+  -- TODO osetrit chybejici (ne)terminaly nebo je dopocitat z pravidel.
+  let rulesRRG = concatMap (\rule -> snd (convertRuleRRG rule counterDict [])) (rules rlg)
   
-  let nonterminalsRRG = nub (nonterminals rlg ++ map fst rulesRRG)
-  
-  return Grammar {
-  nonterminals = nonterminalsRRG,
-  terminals = terminals rlg,
-  startSymbol = startSymbol rlg,
-  rules = rulesRRG
-  } 
+  let nonterminalsRRG = nubOrd (nonterminals rlg ++ map fst rulesRRG)
+  let terminalsRRG = filter (/= "#") $ nubOrd (terminals rlg ++ map (\r -> [head(snd r)]) rulesRRG)
+  let grammar = Grammar {
+                  nonterminals = nonterminalsRRG,
+                  terminals = terminalsRRG,
+                  startSymbol = startSymbol rlg,
+                  rules = rulesRRG
+                  }
+  print grammar  -- DEBUG
+  return grammar
 
 convertToNFA :: Grammar -> IO NFA
 convertToNFA rrg = do
@@ -178,9 +182,9 @@ convertToNFA rrg = do
 
 
 {-___ MAIN ___-}
-rlg2nfa :: IO ()
+mainFunc :: IO ()
 -- rlg2nfa = getArgs >>= parse
-rlg2nfa = do
+mainFunc = do
     args <- getArgs
     let (variant, fileName) = newParse args
     input <- getInput fileName
@@ -195,12 +199,14 @@ rlg2nfa = do
 
 getRLG :: Monad m => [String] -> m Grammar
 getRLG input = do
+  let userInput = input
+  when (length userInput < 4) $ error "Nekompletni vstup."
   let nonterminalsString : terminalsString : startSymbolString : rulesString = input
-  let nonterminals = map ((\a -> if length a == 1 && head a `elem` ['A' .. 'Z'] then a else error "Neterminal muze byt pouze jedno z velkych pismen 'A' az 'Z'") . skipSpaces) (nub (wordsWhen (== ',') nonterminalsString))
-  let terminals = map skipSpaces (nub (wordsWhen (== ',') terminalsString))
-  let startSymbol = if length (skipSpaces startSymbolString) <= 1 then head $ skipSpaces startSymbolString else error "Startovaci symbol musi byt jeden znak na samostatnem radku."
---  let rules = filter (/= ("", "")) (map checkIfValidRule (nub $ filter (not . null) rulesString))
-  let rules = concatMap ((: []) . checkIfValidRule . skipSpaces) (nub $ filter (not . null) rulesString)
+  let nonterminals = map ((\a -> if length a == 1 && head a `elem` ['A' .. 'Z'] then a else error "Neterminal muze byt pouze jedno z velkych pismen 'A' az 'Z'") . skipSpaces) (nubOrd (wordsWhen (== ',') nonterminalsString))
+  let terminals = map skipSpaces (nubOrd (wordsWhen (== ',') terminalsString))
+  let startSymbol = if length (skipSpaces startSymbolString) == 1 then head $ skipSpaces startSymbolString else error "Startovaci symbol musi byt jeden znak na samostatnem radku."
+--  let rules = filter (/= ("", "")) (map checkIfValidRule (nubOrd $ filter (not . null) rulesString))
+  let rules = concatMap ((: []) . checkIfValidRule . skipSpaces) (nubOrd $ filter (not . null) rulesString)
   let rlg = Grammar nonterminals terminals startSymbol rules
 
   return rlg
