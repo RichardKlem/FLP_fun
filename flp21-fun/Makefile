@@ -6,6 +6,7 @@
 MAIN=Main
 LIB=Lib
 UTILS=Utils
+TYPES=Types
 OUTNAME=flp21-fun
 
 all: compile
@@ -16,7 +17,7 @@ run:
 install: compile
 
 compile: clean
-	ghc -Wall -o $(OUTNAME) src/$(LIB).hs src/$(UTILS).hs app/$(MAIN).hs && make clean
+	ghc -Wall -o $(OUTNAME) src/$(LIB).hs src/$(UTILS).hs src/$(TYPES).hs app/$(MAIN).hs && make clean
 
 cleanall:
 	rm -f $(OUTNAME) src/*.o src/*.hi app/*.o app/*.hi
