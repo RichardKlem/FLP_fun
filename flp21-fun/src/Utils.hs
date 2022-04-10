@@ -21,3 +21,9 @@ wordsWhen p s = case dropWhile p s of
 
 upperCount :: String -> Int
 upperCount string = length (filter (\c -> c `elem` ['A'..'Z']) string)
+
+help :: String
+help = "Run the programme with arguments: ./flp-fun [-i|-1|-2|-h] <filename>|<stdin> \n\
+       \Choose one of the switches, only one at the time is allowed, no overriding is permited. \n\
+       \Then choose if you want provide input in file or you will write the input at stdin. \n\
+       \When stdin input is chosen, end your entry by ^Z signal on Windows or ^D signal on Linux."

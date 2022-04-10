@@ -27,14 +27,17 @@ parseInput :: [String] -> (Int, [String])
 parseInput ("-i" : x) = (0, x)
 parseInput ("-1" : x) = (1, x)
 parseInput ("-2" : x) = (2, x)
+parseInput ("-h" : x) = (3, x)
 parseInput _ = error "Invalid arguments."
 
+isInputEmpty :: [String] -> Bool
+isInputEmpty input = [] `elem` take 4 input 
 
 {-___ RLG related functions ___-}
 -- input is list of lines splited by newline from user input
 getRLG :: [String] -> Grammar
 getRLG input =
-  if length input < 4 then error "The input is incomplete. Please check the input carefully."
+  if length input < 4 || isInputEmpty input then error "The input is incomplete. Please check the input carefully."
   else
     (\(nonterminalsString:terminalsString:startSymbolString:rulesString) ->
       Grammar {
@@ -95,8 +98,8 @@ generateRRGRules (l, [r]) c rules = ( incrementCounter (head l) c, rules ++ [(l,
 generateRRGRules (l, r:rs) c rules =
   if head rs `elem` ['A'..'Z'] then (incrementCounter (head l) c, (l,r:rs):rules)
   else generateRRGRules (getNextNonterminal (head l) c, rs) (incrementCounter (head l) c) ((l,r:getNextNonterminal (head l) c):rules)
--- Only for completly exhaustive patterns. The format of input is checked before.
-generateRRGRules _ _ _ = return
+-- Only for completely exhaustive patterns. The format of input is checked before.
+generateRRGRules _ c rules = (c, rules) 
 
 -- Convert Right linear grammar to type 3 grammar (Regular grammar).
 convertToRRG :: Grammar -> Grammar
@@ -157,4 +160,5 @@ mainFunc = do
       0 -> ((n `pseq` (putStr . showRLG)) . getRLG) input
       1 -> ((n `pseq` (putStr . showRRG)) . convertToRRG . getRLG) input
       2 -> ((n `pseq` (putStr . showNFA)) . convertToNFA . convertToRRG . getRLG) input
+      3 -> putStrLn help
       _ -> error "Invalid arguments."
