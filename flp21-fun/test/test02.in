@@ -1,9 +1,0 @@
-A,B,A,A,B
-a,a,c,b,c,b,a
-A
-A->aB
-B->#
-A->cB
-A->cB
-B->bB
-B->#
